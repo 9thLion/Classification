@@ -31,27 +31,37 @@ X = Data[:,round(Data.shape[1]/10)+1:]
 
 
 #---------------------KNN---------------------
-def KNN(train,validation,k=10):
+def KNN(train, validation, k=10, distance_metric='euclidean'):
 
-	
 	from sklearn import preprocessing
 
-	#Isolate and normalize the numeric part
+	#Isolate and standardize the numeric part
 	length=train.shape[0]-1 #Remove the class part
 
-	x = preprocessing.normalize(train[:length].astype(float).T).T
-	y = preprocessing.normalize(validation[:length].astype(float).T).T
+	x = preprocessing.scale(train[:length].astype(float).T).T
+	y = preprocessing.scale(validation[:length].astype(float).T).T
 	KnnClasses=[]
 
-	#To reduce overfitting, we should select the most relevant features
+	#Feature Selection should be added. Our dataset had only 7 features so it wasnt required
 
+	#4 distance metric options
+	import scipy.spatial.distance as scp
+	def Dist(x,y):
+		if distance_metric == 'euclidean':
+			return(sum((x[:,i]-y[:,j])**2)**(1/2))
+		if distance_metric == 'manhattan':
+			return(sum(abs(x[:,i]-y[:,j])))
+		if distance_metric == 'chebyshev':
+			return(scp.chebyshev(x[:,i],y[:,j]))
+		if distance_metric == 'cosine':
+			return(scp.cosine(x[:,i],y[:,j]))
 
 	for j in range(y.shape[1]):
 		labels=[]
 		dists=[]
 		for i in range(x.shape[1]):
 			labels.append(train[train.shape[0]-1,i])
-			dists.append((sum((x[:,i]-y[:,j])**2))**(1/2))
+			dists.append(Dist(x,y))
 		labels = np.array(labels)
 		dists = np.array(dists)
 		indices = dists.argsort()[:k] #sort in ascending order
@@ -109,13 +119,24 @@ def KFold (X, K, method='KNN'):
 		train = np.concatenate(train_folds,axis=1)
 
 		if method == 'KNN':
-			K = KNN(train,validation,X.shape[0]-1,k=10)
+			K = KNN(train,validation,k=10)
 			V = validation[validation.shape[0]-1,:]
 			AccList.append(Acc(V,K))
 	return(sum(AccList)/len(AccList))
 
 #10-fold validation
-print(Acc(,KNN(X,test,k=20)))
+#print(KFold(X,10))
 
 #Leave one out validation (just set the fold number to size of samples)
 #print(KFold(X,K=X.shape[1]))
+
+#print(KNN(X,test))
+
+separated = {}
+for i in range(X.shape[1]):
+	v = X[:,i]
+	if v[len(v)-1] not in separated:
+		separated[v[len(v)-1]] = []
+	separated[v[len(v)-1]].append(v)
+
+
