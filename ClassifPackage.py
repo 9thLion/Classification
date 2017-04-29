@@ -25,16 +25,26 @@ np.random.shuffle(Data.T) #Shuffle the order of the columns
 
 #Save a test set for later
 test = Data[:,:round(Data.shape[1]/10)+1]
+V=test[test.shape[0]-1,:]
 X = Data[:,round(Data.shape[1]/10)+1:]
 
 
 
 #---------------------KNN---------------------
-def KNN(train=train,validation=validation,length=X.shape[0]-1,k=30):
-	#Isolate the numeric part
-	x=train[:length].astype(float)
-	y=validation[:length].astype(float)
+def KNN(train,validation,k=10):
+
+	
+	from sklearn import preprocessing
+
+	#Isolate and normalize the numeric part
+	length=train.shape[0]-1 #Remove the class part
+
+	x = preprocessing.normalize(train[:length].astype(float).T).T
+	y = preprocessing.normalize(validation[:length].astype(float).T).T
 	KnnClasses=[]
+
+	#To reduce overfitting, we should select the most relevant features
+
 
 	for j in range(y.shape[1]):
 		labels=[]
@@ -49,6 +59,7 @@ def KNN(train=train,validation=validation,length=X.shape[0]-1,k=30):
 		labels = labels[indices] 
 		
 		#Keep the most frequent one
+		#Count Votes
 		ClassVotes = {}
 		for l in labels:
 			if l in ClassVotes:
@@ -73,26 +84,24 @@ def KNN(train=train,validation=validation,length=X.shape[0]-1,k=30):
 	KnnClasses=np.array(KnnClasses)
 	return(KnnClasses)
 
-K = KNN()
-
 #Accuracy Test
 def Acc(Known, New):
 	return(New[New==Known].size / New.size)
 
-Acc(V,K)
-
 #---------------------10-fold CV------------------
-def TenFold (X=X, method='KNN'):
-	folds = [X[:,i:i+round(X.shape[1]/10)+1] for i in range(0, X.shape[1], round(X.shape[1]/10) + 1)] #The 10th array will be ~5 smaller
-
+def KFold (X, K, method='KNN'):
+	if K == X.shape[1]: #LOO validation, fold number equals total sample size
+		folds = [X[:,i:i+1] for i in range(0, X.shape[1])]
+	else: #KFold validation
+		folds = [X[:,i:i+round(X.shape[1]/K)+1] for i in range(0, X.shape[1], round(X.shape[1]/K) + 1)] #The 10th array will be ~5 smaller
 	#Use the commented function below to check that no sample is lost
 	#       vvvv 
 	#sum([folds[i].shape[1] for i in range(len(folds))])
 	AccList = []
-	for num in range(10):
+	for fold_i in range(K):
 		#Pick another fold for validation in each iteration
-		validation_fold = num
-		validation = folds[num]
+		validation_fold = fold_i
+		validation = folds[fold_i]
 		#the train will consist of all the folds except the validation:
 		#to do that we iterate over the range of fold indices and skip 
 		#the one used on the validation
@@ -100,9 +109,13 @@ def TenFold (X=X, method='KNN'):
 		train = np.concatenate(train_folds,axis=1)
 
 		if method == 'KNN':
-			K = KNN(train,validation,X.shape[0]-1,k=15)
+			K = KNN(train,validation,X.shape[0]-1,k=10)
 			V = validation[validation.shape[0]-1,:]
 			AccList.append(Acc(V,K))
 	return(sum(AccList)/len(AccList))
 
-print(TenFold())
+#10-fold validation
+print(Acc(,KNN(X,test,k=20)))
+
+#Leave one out validation (just set the fold number to size of samples)
+#print(KFold(X,K=X.shape[1]))
