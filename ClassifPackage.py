@@ -122,6 +122,10 @@ def KFold (X, K, method='KNN'):
 			K = KNN(train,validation,k=10)
 			V = validation[validation.shape[0]-1,:]
 			AccList.append(Acc(V,K))
+		elif method == 'NaiveBayes':
+			K = NaiveBayes(X=train,test=validation)
+			V = validation[validation.shape[0]-1,:]
+			AccList.append(Acc(V,K))
 	return(sum(AccList)/len(AccList))
 
 #10-fold validation
@@ -133,63 +137,96 @@ def KFold (X, K, method='KNN'):
 #print(KNN(X,test))
 
 
-#Lay the data on a dictionary, where each class will correspond to
-#the appropriate vectors
-separated = {}
-for i in range(X.shape[1]):
-	v = X[:,i]
-	if v[len(v)-1] not in separated:
-		separated[v[len(v)-1]] = []
-	separated[v[len(v)-1]].append(v[:len(v)-1].astype(float))
+def NaiveBayes(X=X, test=test):
+	#Lay the data on a dictionary, where each class will correspond to
+	#the appropriate vectors
+	separated = {}
+	for i in range(X.shape[1]):
+		v = X[:,i]
+		if v[-1] not in separated:
+			separated[v[-1]] = []
+		separated[v[-1]].append(v[:-1].astype(float))
+	#Each value of separated will be one sample
 
-def Gauss(x,mu,var):
-	return( (1/(2*np.pi*var)**(1/2)) * np.exp(-((x-mu)**2)/2*var) )
+	#define two useful functions, a gaussian PDF and a product function
+	def Gauss(x,mu,var):
+		return( (1/(2*np.pi*var)**(1/2)) * np.exp(-((x-mu)**2)/(2*var)) )
 
-def Product(l):
-	x = l[0]*l[1]
-	i=2
-	while True:
-		if i == len(l):
-			break
-		x = x*l[i]
-		i+=1
-	return(x)
+	def Product(l):
+		x = l[0]*l[1]
+		i=2
+		while True:
+			if i == len(l):
+				break
+			x = x*l[i]
+			i+=1
+		return(x)
 
-datasum = {}
-gg=[]
-for group in separated:
-	datasum[group] = []
-	#Make a temporary array, where the columns are the samples 
-	#that belong to the class specified by the variable "group"
-	temp = np.column_stack(separated[group])
+	#Keep a summary of the training data, hence means and variances 
+	#of each feature for each class
+	datasum = {}
+	gg=[]
+	marginals = {}
+	for group in separated:
+		datasum[group] = []
+		#Make a temporary array, where the columns are the samples 
+		#that belong to the class specified by the variable "group"
+		temp = np.column_stack(separated[group])
 
-	for feature in temp:
-		m = sum(feature)/len(feature)
-		v = np.var(feature)
-		datasum[group].append((m,v))
+		for feature in temp:
+			m = sum(feature)/len(feature)
+			v = np.var(feature)
+			datasum[group].append((m,v))
 
-	#change to np.array, column 1 will be the means, column 2 the variance
-	datasum[group]=np.array(datasum[group])
+		#change to np.array, column 1 will be the means, column 2 the variance
+		datasum[group]=np.array(datasum[group])
+		marginals[group]=(len(separated[group])/X.shape[1])
 
-t = test[:-1,:].T.astype(float)
-for x in t:
-	index=0
-	for i in x:
-		temp = []
-		for g in datasum.keys():
-			#Calculate the PDF for the corresponding variance and mean
-			#That's why we kept an index number
-			Mean = datasum[g][index,0]
-			Variance = datasum[g][index,1]
-			if Variance == 0:
-				#If the variance is 0 then this feature value should be 
-				#either equal to the mean and have a probability 1 or not equal
-				#and have a 0 probability of belonging to that class
-				if Mean == i:
-					temp.append(1)
-				if Mean != i:
-					temp.append(0)
-			else:
-				temp.append(Gauss(i,Mean,Variance))
-		index+=1
-		print(temp)
+	#The total needs to be equal to 1:
+	#sum(marginals.values())
+
+	t = test[:-1,:].T.astype(float)
+	NBclasses = []
+	for x in t:
+		check = 0
+		for label in datasum.keys():
+			temp = []
+			index=0
+			for i in x:
+				#Calculate the PDF for the corresponding variance and mean
+				#To parse properly, we increase the index in each loop
+				Mean = datasum[label][index,0]
+				Variance = datasum[label][index,1]
+
+				if Variance == 0:
+					#If the variance is 0 then this feature value should be 
+					#either equal to the mean and have a high likelihood of
+					#belonging to that class or be not equal and have a lower 
+					#likelihood
+					if Mean == i:
+						Laplace = (len(separated['MIT'])+1)/len(separated.values())
+						temp.append(Laplace)
+					if Mean != i:
+						Laplace = 1/len(separated.values())
+						temp.append(Laplace)
+				else:
+					temp.append(Gauss(i,Mean,Variance))
+				index+=1
+
+			Prob = Product(temp)*marginals[label]
+			if check == 0:
+				check+=1
+				PreviousHigh = Prob
+				Chosen = label
+				continue
+
+			if Prob > PreviousHigh:
+				PreviousHigh = Prob
+				Chosen = label
+
+		NBclasses.append(Chosen)
+	return(np.array(NBclasses))
+
+NBclasses = NaiveBayes(X=X,test=test)
+Knnclasses = KNN(train=X,validation=test,k=5)
+print(KFold(X=X, K=10, method = 'NaiveBayes'))
