@@ -18,7 +18,7 @@ with open('yeast.data') as f:
 		temp.append(temp2)
 
 Data=np.array(temp).T
-L=np.array(set(vector)) #Labels
+L=set(vector) #Labels
 
 k=5
 np.random.shuffle(Data.T) #Shuffle the order of the columns
@@ -132,11 +132,64 @@ def KFold (X, K, method='KNN'):
 
 #print(KNN(X,test))
 
+
+#Lay the data on a dictionary, where each class will correspond to
+#the appropriate vectors
 separated = {}
 for i in range(X.shape[1]):
 	v = X[:,i]
 	if v[len(v)-1] not in separated:
 		separated[v[len(v)-1]] = []
-	separated[v[len(v)-1]].append(v)
+	separated[v[len(v)-1]].append(v[:len(v)-1].astype(float))
 
+def Gauss(x,mu,var):
+	return( (1/(2*np.pi*var)**(1/2)) * np.exp(-((x-mu)**2)/2*var) )
 
+def Product(l):
+	x = l[0]*l[1]
+	i=2
+	while True:
+		if i == len(l):
+			break
+		x = x*l[i]
+		i+=1
+	return(x)
+
+datasum = {}
+gg=[]
+for group in separated:
+	datasum[group] = []
+	#Make a temporary array, where the columns are the samples 
+	#that belong to the class specified by the variable "group"
+	temp = np.column_stack(separated[group])
+
+	for feature in temp:
+		m = sum(feature)/len(feature)
+		v = np.var(feature)
+		datasum[group].append((m,v))
+
+	#change to np.array, column 1 will be the means, column 2 the variance
+	datasum[group]=np.array(datasum[group])
+
+t = test[:-1,:].T.astype(float)
+for x in t:
+	index=0
+	for i in x:
+		temp = []
+		for g in datasum.keys():
+			#Calculate the PDF for the corresponding variance and mean
+			#That's why we kept an index number
+			Mean = datasum[g][index,0]
+			Variance = datasum[g][index,1]
+			if Variance == 0:
+				#If the variance is 0 then this feature value should be 
+				#either equal to the mean and have a probability 1 or not equal
+				#and have a 0 probability of belonging to that class
+				if Mean == i:
+					temp.append(1)
+				if Mean != i:
+					temp.append(0)
+			else:
+				temp.append(Gauss(i,Mean,Variance))
+		index+=1
+		print(temp)
