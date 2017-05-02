@@ -1,66 +1,44 @@
-import os
 import numpy as np
 
-#os.system('wget http://mlearn.ics.uci.edu/databases/yeast/yeast.data')
+#It is important for the input to have random order
 
+#-----------------------------------------------------
+#-------------------------KNN-------------------------
+#-----------------------------------------------------
 
-temp=[]
-vector=[]
-with open('yeast.data') as f:
-	for l in f:
-		temp2=[]
-		for x in l.split()[1:]:
-			try:
-				temp2.append(float(x))
-			except ValueError: #Categorical Values, the classes
-				vector.append(x)
-				temp2.append(x)
-		temp.append(temp2)
-
-Data=np.array(temp).T
-L=set(vector) #Labels
-
-k=5
-np.random.shuffle(Data.T) #Shuffle the order of the columns
-
-#Save a test set for later
-test = Data[:,:round(Data.shape[1]/10)+1]
-V=test[test.shape[0]-1,:]
-X = Data[:,round(Data.shape[1]/10)+1:]
-
-
-
-#---------------------KNN---------------------
-def KNN(train, validation, k=10, distance_metric='euclidean'):
+def KNN(X, L, Xnew, k=10, distance_metric='euclidean'):
 
 	from sklearn import preprocessing
 
 	#Isolate and standardize the numeric part
-	length=train.shape[0]-1 #Remove the class part
 
-	x = preprocessing.scale(train[:length].astype(float).T).T
-	y = preprocessing.scale(validation[:length].astype(float).T).T
+	x = preprocessing.scale(X)
+	y = preprocessing.scale(Xnew)
 	KnnClasses=[]
 
 	#Feature Selection should be added. Our dataset had only 7 features so it wasnt required
 
 	#4 distance metric options
 	import scipy.spatial.distance as scp
+
+	#Define a distance function, based on the argument given. I also use
+	#Numbers to be able to iterate over the function when validating
+	#to find the best distance metric
 	def Dist(x,y):
-		if distance_metric == 'euclidean':
+		if distance_metric == 'euclidean' or distance_metric == 0:
 			return(sum((x[:,i]-y[:,j])**2)**(1/2))
-		if distance_metric == 'manhattan':
+		if distance_metric == 'manhattan' or distance_metric == 1:
 			return(sum(abs(x[:,i]-y[:,j])))
-		if distance_metric == 'chebyshev':
+		if distance_metric == 'chebyshev' or distance_metric == 2:
 			return(scp.chebyshev(x[:,i],y[:,j]))
-		if distance_metric == 'cosine':
+		if distance_metric == 'cosine'or distance_metric == 3:
 			return(scp.cosine(x[:,i],y[:,j]))
 
 	for j in range(y.shape[1]):
 		labels=[]
 		dists=[]
 		for i in range(x.shape[1]):
-			labels.append(train[train.shape[0]-1,i])
+			labels.append(L[i])
 			dists.append(Dist(x,y))
 		labels = np.array(labels)
 		dists = np.array(dists)
@@ -94,58 +72,19 @@ def KNN(train, validation, k=10, distance_metric='euclidean'):
 	KnnClasses=np.array(KnnClasses)
 	return(KnnClasses)
 
-#Accuracy Test
-def Acc(Known, New):
-	return(New[New==Known].size / New.size)
 
-#---------------------10-fold CV------------------
-def KFold (X, K, method='KNN'):
-	if K == X.shape[1]: #LOO validation, fold number equals total sample size
-		folds = [X[:,i:i+1] for i in range(0, X.shape[1])]
-	else: #KFold validation
-		folds = [X[:,i:i+round(X.shape[1]/K)+1] for i in range(0, X.shape[1], round(X.shape[1]/K) + 1)] #The 10th array will be ~5 smaller
-	#Use the commented function below to check that no sample is lost
-	#       vvvv 
-	#sum([folds[i].shape[1] for i in range(len(folds))])
-	AccList = []
-	for fold_i in range(K):
-		#Pick another fold for validation in each iteration
-		validation_fold = fold_i
-		validation = folds[fold_i]
-		#the train will consist of all the folds except the validation:
-		#to do that we iterate over the range of fold indices and skip 
-		#the one used on the validation
-		train_folds = [folds[i] for i in range(len(folds)) if i !=validation_fold]
-		train = np.concatenate(train_folds,axis=1)
+#-----------------------------------------------------
+#---------------------Naive Bayes---------------------
+#-----------------------------------------------------
 
-		if method == 'KNN':
-			K = KNN(train,validation,k=10)
-			V = validation[validation.shape[0]-1,:]
-			AccList.append(Acc(V,K))
-		elif method == 'NaiveBayes':
-			K = NaiveBayes(X=train,test=validation)
-			V = validation[validation.shape[0]-1,:]
-			AccList.append(Acc(V,K))
-	return(sum(AccList)/len(AccList))
-
-#10-fold validation
-#print(KFold(X,10))
-
-#Leave one out validation (just set the fold number to size of samples)
-#print(KFold(X,K=X.shape[1]))
-
-#print(KNN(X,test))
-
-
-def NaiveBayes(X=X, test=test):
+def NaiveBayes(X, L, test):
 	#Lay the data on a dictionary, where each class will correspond to
 	#the appropriate vectors
 	separated = {}
 	for i in range(X.shape[1]):
-		v = X[:,i]
-		if v[-1] not in separated:
-			separated[v[-1]] = []
-		separated[v[-1]].append(v[:-1].astype(float))
+		if L[i] not in separated:
+			separated[L[i]] = []
+		separated[L[i]].append(X[:,i])
 	#Each value of separated will be one sample
 
 	#define two useful functions, a gaussian PDF and a product function
@@ -227,6 +166,43 @@ def NaiveBayes(X=X, test=test):
 		NBclasses.append(Chosen)
 	return(np.array(NBclasses))
 
-NBclasses = NaiveBayes(X=X,test=test)
-Knnclasses = KNN(train=X,validation=test,k=5)
-print(KFold(X=X, K=10, method = 'NaiveBayes'))
+#----------------------Accuracy Test--------------------
+def Acc(Known, New):
+	return(New[New==Known].size / New.size)
+
+#-------------------------------------------------------
+#---------------------Cross Validation------------------
+#-------------------------------------------------------
+
+def KFold (X, L, K, method='KNN', k=5, dist_metric='euclidean'):
+	# K is the number of folds. If it is defined as equal to X.shape[1], then
+	# it will run Leave One Out validation
+
+	A = np.vstack((X,L))
+	if K == A.shape[1]: #LOO validation, fold number equals total sample size
+		folds = [A[:,i:i+1] for i in range(0, A.shape[1])]
+	else: #KFold validation
+		folds = [A[:,i:i+round(A.shape[1]/K)+1] for i in range(0, A.shape[1], round(A.shape[1]/K) + 1)] #The 10th array will be ~5 smaller
+	#Use the commented function below to check that no sample is lost
+	#       vvvv 
+	#sum([folds[i].shape[1] for i in range(len(folds))])
+	AccList = []
+	for fold_i in range(K):
+		#Pick another fold for validation in each iteration
+		validation_fold = fold_i
+		validation = folds[fold_i][:-1,:].astype(float)
+		V = folds[fold_i][-1,:]
+		#the train will consist of all the folds except the validation:
+		#to do that we iterate over the range of fold indices and skip 
+		#the one used on the validation
+		train_folds = [folds[i] for i in range(len(folds)) if i !=validation_fold]
+		train = np.concatenate(train_folds,axis=1)[:-1,:].astype(float)
+		L = np.concatenate(train_folds,axis=1)[-1,:]
+		
+		if method == 'KNN':
+			K = KNN(train, L, validation,k=k, distance_metric=dist_metric)
+			AccList.append(Acc(V,K))
+		elif method == 'NaiveBayes':
+			K = NaiveBayes(train, L, validation)
+			AccList.append(Acc(V,K))
+	return(sum(AccList)/len(AccList))
