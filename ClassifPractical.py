@@ -51,10 +51,13 @@ accuracies = np.array(accuracies)
 print(configurations[accuracies==max(accuracies)])
 
 #Leave one out validation (just set the fold number equal to size of samples)
-#print(cla.KFold(X,K=X.shape[1],method='KNN'))
-#print(cla.KFold(X,K=X.shape[1],method='NaiveBayes'))
+print(cla.KFold(X,L,K=X.shape[1],method='KNN',k=10, dist_metric='manhattan'))
+print(cla.KFold(X,L,K=X.shape[1],method='NaiveBayes'))
 
-#print(KNN(X,test))
+#-----------
+
+TestLabels = cla.KNN(X, L, test, k=10, distance_metric='manhattan')
+print(cla.Acc(V, TestLabels))
 
 
 
