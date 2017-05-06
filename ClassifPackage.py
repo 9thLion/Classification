@@ -174,9 +174,12 @@ def Acc(Known, New):
 #---------------------Cross Validation------------------
 #-------------------------------------------------------
 
-def KFold (X, L, K, method='KNN', k=5, dist_metric='euclidean'):
+def KFold (X, L, K, method='KNN', hp=5, dist_metric='euclidean'):
 	# K is the number of folds. If it is defined as equal to X.shape[1], then
 	# it will run Leave One Out validation
+	#hp is the hyperparameter for the selected method, 
+	#(Naive Bayes doesnt have one)
+	from sklearn import svm
 
 	A = np.vstack((X,L))
 	if K == A.shape[1]: #LOO validation, fold number equals total sample size
@@ -200,9 +203,15 @@ def KFold (X, L, K, method='KNN', k=5, dist_metric='euclidean'):
 		L = np.concatenate(train_folds,axis=1)[-1,:]
 		
 		if method == 'KNN':
-			K = KNN(train, L, validation,k=k, distance_metric=dist_metric)
+			K = KNN(train, L, validation,k=hp, distance_metric=dist_metric)
 			AccList.append(Acc(V,K))
 		elif method == 'NaiveBayes':
 			K = NaiveBayes(train, L, validation)
 			AccList.append(Acc(V,K))
+		elif method == 'SVM':
+			model=svm.LinearSVC(C=hp)
+			clf=model.fit(train.T,L)
+			K = clf.predict(validation.T)
+			AccList.append(Acc(V,K))
+
 	return(sum(AccList)/len(AccList))
