@@ -34,7 +34,7 @@ Split2 = Data[:,:round(Data.shape[1]/10)+1]
 test = Split2[:-1,:].astype(float)
 V = Split2[-1,:]
 
-#-----------------------------------
+#------------------Data Visualization----------------
 Data=np.array(temp).T
 
 DataPC = pac.MyFirstAlgorithm(Data[:-1,:].astype(float), k=2)[0]
@@ -61,14 +61,14 @@ plt.legend()
 plt.show()
 
 
-#-----------------------------------
+#-------------------Validation------------------
 #10-fold validation
-K = list(range(1,19,3))
+K = list(range(13,18))
 
 plt.title('KNN tuning')
 plt.xlabel('K Hyperparameter')
 plt.ylabel('Accuracy')
-for dm in range(0,4): #4 different distance metrics
+for dm in range(0,3): #3 different distance metrics
 
 	configurations = []
 	accuracies = []
@@ -80,27 +80,32 @@ for dm in range(0,4): #4 different distance metrics
 		configurations.append('{}NN_{}'.format(i,dm)) 
 		accuracies.append(cla.KFold(X, L, 10, method='KNN',hp=i, dist_metric=dm))
 	#labels for the legend
-	metrics = ['euclidean','manhattan','chebyshev','cosine'] 
+	metrics = ['euclidean','manhattan','chebyshev'] 
 	plt.plot(K, accuracies, label=metrics[dm])
+	configurations = np.array(configurations)
+	accuracies = np.array(accuracies)
+	print(configurations[accuracies==max(accuracies)])
+
 plt.legend()
 plt.show()
 
-#Why is euclidean skipped if I use 4 distance metrics? if dm range is 0,3 it works 
+#For some weird reason the plot won't output more than 3 lines
 
-configurations.append('NBayes') 
-accuracies.append(cla.KFold(X, L, K=10,method='NaiveBayes'))
-
-#Now to find the configuration with the maximum accuracy,
-#this should be enough:
-configurations = np.array(configurations)
-accuracies = np.array(accuracies)
-print(configurations[accuracies==max(accuracies)])
+#Naive Bayes has no hyperparameters
+print('Naive Bayes accuracy:',cla.KFold(X, L, K=10,method='NaiveBayes'))
 
 #Leave one out validation (just set the fold number equal to size of samples)
-print(cla.KFold(X,L,K=X.shape[1],method='KNN',k=10, dist_metric='manhattan'))
+print(cla.KFold(X,L,K=X.shape[1],method='KNN',hp=17, dist_metric='manhattan'))
 print(cla.KFold(X,L,K=X.shape[1],method='NaiveBayes'))
 
+TestLabels = cla.KNN(X, L, test, k=17, distance_metric='manhattan')
+print('KNN test accuracy: ', cla.Acc(V, TestLabels))
 
+
+
+
+
+#=========================================================================
 #------------------SVM--------------
 configurations = []
 accuracies = []
@@ -116,14 +121,6 @@ plt.ylabel('Accuracy')
 plt.show()
 #--------------
 
-TestLabels = cla.KNN(X, L, test, k=10, distance_metric='cosine')
-print(cla.Acc(V, TestLabels))
-
-model=svm.LinearSVC()
+model=svm.LinearSVC(C=100)
 clf=model.fit(X.T,L)
-print(cla.Acc(V, clf.predict(test.T)))
-
-
-#NBclasses = NaiveBayes(X=X,test=test)
-#Knnclasses = KNN(train=X,validation=test,k=5)
-#print(KFold(X=X, K=10, method = 'NaiveBayes'))
+print('SVM test accuracy: ', cla.Acc(V, clf.predict(test.T)))

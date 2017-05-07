@@ -10,13 +10,9 @@ def KNN(X, L, Xnew, k=10, distance_metric='euclidean'):
 
 	from sklearn import preprocessing
 
-	#Isolate and standardize the numeric part
-
 	x = preprocessing.scale(X)
 	y = preprocessing.scale(Xnew)
 	KnnClasses=[]
-
-	#Feature Selection should be added. Our dataset had only 7 features so it wasnt required
 
 	#4 distance metric options
 	import scipy.spatial.distance as scp
@@ -77,7 +73,7 @@ def KNN(X, L, Xnew, k=10, distance_metric='euclidean'):
 #---------------------Naive Bayes---------------------
 #-----------------------------------------------------
 
-def NaiveBayes(X, L, test):
+def NaiveBayes(X, L, Xnew):
 	#Lay the data on a dictionary, where each class will correspond to
 	#the appropriate vectors
 	separated = {}
@@ -124,9 +120,8 @@ def NaiveBayes(X, L, test):
 	#The total needs to be equal to 1:
 	#sum(marginals.values())
 
-	t = test[:-1,:].T.astype(float)
 	NBclasses = []
-	for x in t:
+	for x in Xnew.T:
 		check = 0
 		for label in datasum.keys():
 			temp = []
