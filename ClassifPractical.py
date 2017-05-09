@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import svm
 
-#os.system('wget http://mlearn.ics.uci.edu/databases/yeast/yeast.data')
+os.system('wget http://mlearn.ics;.uci.edu/databases/yeast/yeast.data')
 
 temp=[]
 vector=[]
@@ -69,7 +69,8 @@ plt.title('KNN tuning')
 plt.xlabel('K Hyperparameter')
 plt.ylabel('Accuracy')
 for dm in range(0,3): #3 different distance metrics
-
+	metrics = ['euclidean','manhattan','chebyshev'] 
+	print('Now running 10-fold validation through different configurations of the KNN with distance metric {}'.format(metrics[dm]))
 	configurations = []
 	accuracies = []
 	for i in K: #Different values of k
@@ -77,13 +78,13 @@ for dm in range(0,3): #3 different distance metrics
 		#the index of the configuration will match
 		#the correct index on the accuracy list.
 		print('...')
-		configurations.append('{}NN_{}'.format(i,dm)) 
+		configurations.append('{}NN_{}'.format(i,metrics[dm])) 
 		accuracies.append(cla.KFold(X, L, 10, method='KNN',hp=i, dist_metric=dm))
 	#labels for the legend
-	metrics = ['euclidean','manhattan','chebyshev'] 
 	plt.plot(K, accuracies, label=metrics[dm])
 	configurations = np.array(configurations)
 	accuracies = np.array(accuracies)
+	print("Maximum accuracy at:")
 	print(configurations[accuracies==max(accuracies)])
 
 plt.legend()
@@ -92,14 +93,14 @@ plt.show()
 #For some weird reason the plot won't output more than 3 lines
 
 #Naive Bayes has no hyperparameters
-print('Naive Bayes accuracy:',cla.KFold(X, L, K=10,method='NaiveBayes'))
+print('Naive Bayes accuracy (10-fold validation): ',cla.KFold(X, L, K=10,method='NaiveBayes'))
 
 #Leave one out validation (just set the fold number equal to size of samples)
-print(cla.KFold(X,L,K=X.shape[1],method='KNN',hp=17, dist_metric='manhattan'))
-print(cla.KFold(X,L,K=X.shape[1],method='NaiveBayes'))
+print('17NN (manhattan) accuracy (LOO validation): ', cla.KFold(X,L,K=X.shape[1],method='KNN',hp=17, dist_metric='manhattan'))
+print('Naive Bayes accuracy (LOO validation): ' ,cla.KFold(X,L,K=X.shape[1],method='NaiveBayes'))
 
 TestLabels = cla.KNN(X, L, test, k=17, distance_metric='manhattan')
-print('KNN test accuracy: ', cla.Acc(V, TestLabels))
+print('17NN (manhattan) test accuracy: ', cla.Acc(V, TestLabels))
 
 
 
